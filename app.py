@@ -470,7 +470,7 @@ async def create_group(group: GroupCreate, x_director_key: str | None = Header(d
         raise HTTPException(status_code=400, detail="Add at least two players")
     if SUPABASE is not None:
         try:
-            created_rows = SUPABASE.table("groups").insert({"tournament_id": x_tournament_id, "name": group.name.strip()}).select().execute().data or []
+            created_rows = SUPABASE.table("groups").insert({"tournament_id": x_tournament_id, "name": group.name.strip()}).execute().data or []
             if not created_rows:
                 raise HTTPException(status_code=500, detail="Supabase did not return the new group")
             created = created_rows[0]
