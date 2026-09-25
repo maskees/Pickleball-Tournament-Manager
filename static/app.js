@@ -20,8 +20,10 @@ function renderStandings() {
 }
 
 function renderBracket() {
-  const rounds = [...new Set(state.matches.map((match) => match.round))];
-  $('#matches').innerHTML = rounds.length ? `<div class="bracket-tree">${rounds.map((round) => `<section class="bracket-round"><div class="bracket-round-title">${round}<small>${state.matches.filter((match) => match.round === round).length} matches</small></div>${state.matches.filter((match) => match.round === round).map((match) => `<article class="bracket-match"><div><span>${match.team_one}</span><strong>${match.score_one}</strong></div><div><span>${match.team_two}</span><strong>${match.score_two}</strong></div></article>`).join('')}</section>`).join('')}</div>` : '<div class="empty">Add a player group and seed it to build the bracket tree.</div>';
+  const roundOrder = { 'Round of 64': 1, 'Round of 32': 2, 'Round of 16': 3, 'Quarter-final': 4, 'Semi-final': 5, Final: 6 };
+  const knockoutMatches = state.matches.filter((match) => match.stage === 'knockout');
+  const rounds = [...new Set(knockoutMatches.map((match) => match.round))].sort((first, second) => (roundOrder[first] || 50) - (roundOrder[second] || 50));
+  $('#matches').innerHTML = rounds.length ? `<div class="bracket-tree">${rounds.map((round) => `<section class="bracket-round"><div class="bracket-round-title">${round}<small>${knockoutMatches.filter((match) => match.round === round).length} matches</small></div>${knockoutMatches.filter((match) => match.round === round).map((match) => `<article class="bracket-match"><div><span>${match.team_one}</span><strong>${match.score_one}</strong></div><div><span>${match.team_two}</span><strong>${match.score_two}</strong></div></article>`).join('')}</section>`).join('')}</div>` : '<div class="empty">Finish the group stage and qualify players to build the knockout tree.</div>';
 }
 
 function render() {

@@ -603,7 +603,7 @@ async def create_knockout(_: KnockoutRequest, x_director_key: str | None = Heade
         round_size = len(pairings)
         round_number = 1
         while round_size:
-            round_name = {1: "Final", 2: "Semi-final", 4: "Quarter-final"}.get(round_size, f"Knockout round {round_number}")
+            round_name = {1: "Final", 2: "Semi-final", 4: "Quarter-final", 8: "Round of 16", 16: "Round of 32", 32: "Round of 64"}.get(round_size, f"Knockout round {round_number}")
             names = pairings if round_number == 1 else [("Qualifier", "TBD") for _ in range(round_size)]
             for first, second in names:
                 rows.append({"tournament_id": x_tournament_id, "stage": "knockout", "court": f"Court {(len(rows) % tournament['courts']) + 1:02d}", "round": round_name, "team_one": first[1] if isinstance(first, tuple) else first, "team_two": second[1] if isinstance(second, tuple) else second, "score_one": 0, "score_two": 0, "status": "UPCOMING", "scheduled_at": timestamp, "updated_at": timestamp})
@@ -624,7 +624,7 @@ async def create_knockout(_: KnockoutRequest, x_director_key: str | None = Heade
         round_size = len(pairings)
         round_number = 1
         while round_size:
-            round_name = {1: "Final", 2: "Semi-final", 4: "Quarter-final"}.get(round_size, f"Knockout round {round_number}")
+            round_name = {1: "Final", 2: "Semi-final", 4: "Quarter-final", 8: "Round of 16", 16: "Round of 32", 32: "Round of 64"}.get(round_size, f"Knockout round {round_number}")
             names = pairings if round_number == 1 else [("Qualifier", "TBD"), ("Qualifier", "TBD")] if round_size == 2 else [("Qualifier", "TBD") for _ in range(round_size)]
             for index, (first, second) in enumerate(names):
                 first_name = first[1] if isinstance(first, tuple) else first
