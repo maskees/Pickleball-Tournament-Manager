@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#10201f" />
+  <meta name="description" content="Live tournament scores for viewers, with director-only controls." />
+  <title>Top Dawgs Control</title>
+  <link rel="manifest" href="/static/manifest.json" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/static/styles.css" />
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div class="brand"><span class="brand-mark">TD</span><span>Top Dawgs Control</span></div>
+      <div class="connection"><span class="pulse"></span><span id="connection-label">Connecting live</span></div>
+      <button class="role-button" id="tournament-button" type="button">Choose tournament <span>⌄</span></button>
+      <button class="role-button" id="setup-button" type="button">Director sign in <span>↗</span></button>
+    </header>
+
+    <section class="hero">
+      <div>
+        <p class="eyebrow" id="tournament-status">DIRECTOR CONTROL ROOM</p>
+        <h1 id="tournament-name">Singles Top Dawgs</h1>
+        <p class="subline"><span id="venue">Tournament Control Room</span><span class="dot"></span><span>Live scoring</span></p>
+      </div>
+      <div class="hero-stat"><span class="stat-label">Courts active</span><strong id="active-courts">0</strong><span class="stat-foot">of <span id="court-total">4</span> courts</span></div>
+    </section>
+
+    <nav class="tabs" aria-label="Tournament views">
+      <button class="tab active" data-view="live">Live courts <span id="live-count">2</span></button>
+      <button class="tab" data-view="schedule">Schedule</button>
+      <button class="tab" data-view="bracket">Bracket graph</button>
+      <button class="tab" data-view="standings">Group standings</button>
+    </nav>
+
+    <section class="toolbar">
+      <div><span class="section-kicker">LIVE BOARD</span><h2 id="view-title">Happening now</h2></div>
+      <div class="role-hint" id="role-hint">Viewer mode · live scores only</div>
+    </section>
+
+    <section id="matches" class="match-grid" aria-live="polite"></section>
+
+    <section class="sync-strip"><span class="sync-icon">↻</span><span>Scores update automatically</span><span class="sync-time" id="last-updated">Waiting for sync</span></section>
+  </main>
+
+  <dialog id="login-dialog"><form method="dialog" class="role-panel" id="login-form"><p class="eyebrow">DIRECTOR CONTROLS</p><h2>Manage tournament</h2><p class="dialog-copy">Viewers can watch scores without signing in. Enter the director access code to edit matches, groups, and event details.</p><input id="access-code" type="password" placeholder="Director access code" autocomplete="current-password" required /><button class="primary-button" type="submit">Open director controls</button><p class="form-error" id="login-error"></p></form></dialog>
+  <dialog id="tournament-dialog"><form method="dialog" class="role-panel"><button class="close" value="cancel" aria-label="Close">×</button><p class="eyebrow">TOURNAMENT DIRECTORY</p><h2>Choose an event</h2><p class="dialog-copy">Viewers can select any published event. Directors can create a new tournament after signing in.</p><div id="tournament-list" class="tournament-list"></div><div id="create-tournament-panel" class="create-tournament-panel"><h3>New tournament</h3><label>Name<input id="new-tournament-name" placeholder="Singles Top Dawgs" /></label><label>Venue<input id="new-tournament-venue" placeholder="Main courts" /></label><label>Courts<input id="new-tournament-courts" type="number" min="1" max="64" value="4" /></label><button class="primary-button" type="button" id="create-tournament">Create tournament</button><p class="form-error" id="tournament-error"></p></div></form></dialog>
+  <dialog id="setup-dialog"><form method="dialog" class="role-panel" id="setup-form"><button class="close" value="cancel" aria-label="Close">×</button><p class="eyebrow">TOURNAMENT SETUP</p><h2>Edit event</h2><div class="form-grid"><label>Event name<input id="event-name" required /></label><label>Venue<input id="event-venue" required /></label><label>Courts available<input id="event-courts" type="number" min="1" max="64" required /></label><label>Status<select id="event-status"><option>UPCOMING</option><option>LIVE</option><option>FINAL</option></select></label></div><button class="primary-button" type="button" id="save-event">Save event details</button><hr /><h3 id="group-form-title">Add player group</h3><label>Group name<input id="group-name" placeholder="Example: Pool A" /></label><label>Players and seeds<textarea id="group-players" rows="7" placeholder="1 | Player 1&#10;2 | Player 2&#10;3 | Player 3&#10;4 | Player 4"></textarea></label><p class="field-note">One player per line: seed number, then a vertical bar, then the name.</p><button class="primary-button" type="button" id="add-group">Add group</button><div id="group-list" class="group-list"></div><button class="primary-button" type="button" id="generate-groups">Generate group-stage matches</button><button class="seed-button" type="button" id="generate-knockout">Qualify top two from each group</button><p class="form-error" id="setup-error"></p></form></dialog>
+  <script src="/static/app.js"></script>
+</body>
+</html>
