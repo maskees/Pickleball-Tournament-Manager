@@ -469,14 +469,19 @@ async def create_group(group: GroupCreate, x_director_key: str | None = Header(d
     if len(players) < 2:
         raise HTTPException(status_code=400, detail="Add at least two players")
     if SUPABASE is not None:
-        created_rows = SUPABASE.table("groups").insert({"tournament_id": x_tournament_id, "name": group.name.strip()}).select().execute().data or []
-        if not created_rows:
-            raise HTTPException(status_code=500, detail="Supabase did not return the new group")
-        created = created_rows[0]
-        SUPABASE.table("players").insert([{"group_id": created["id"], "name": player.name.strip(), "seed": player.seed} for player in players]).execute()
-        state = cloud_state(x_tournament_id)
-        await manager.broadcast(x_tournament_id, {"type": "state_updated", "state": state})
-        return state
+        try:
+            created_rows = SUPABASE.table("groups").insert({"tournament_id": x_tournament_id, "name": group.name.strip()}).select().execute().data or []
+            if not created_rows:
+                raise HTTPException(status_code=500, detail="Supabase did not return the new group")
+            created = created_rows[0]
+            SUPABASE.table("players").insert([{"group_id": created["id"], "name": player.name.strip(), "seed": player.seed} for player in players]).execute()
+            state = cloud_state(x_tournament_id)
+            await manager.broadcast(x_tournament_id, {"type": "state_updated", "state": state})
+            return state
+        except HTTPException:
+            raise
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Supabase group save failed: {exc}") from exc
     with connect() as database:
         cursor = database.execute("INSERT INTO groups (tournament_id, name, created_at) VALUES (?, ?, ?)", (x_tournament_id, group.name.strip(), now()))
         database.executemany("INSERT INTO players (group_id, name, seed) VALUES (?, ?, ?)", [(cursor.lastrowid, player.name.strip(), player.seed) for player in players])
