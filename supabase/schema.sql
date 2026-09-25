@@ -49,6 +49,7 @@ create table if not exists public.players (
 );
 
 alter table public.tournaments add column if not exists courts integer not null default 4;
+update public.tournaments set courts = 4 where courts is null;
 alter table public.matches add column if not exists group_id uuid references public.groups(id) on delete set null;
 alter table public.matches add column if not exists stage text not null default 'knockout';
 
