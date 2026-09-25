@@ -13,7 +13,7 @@ from typing import Any
 from fastapi import FastAPI, Header, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from dotenv import load_dotenv
 try:
     from supabase import Client, create_client
@@ -142,6 +142,15 @@ class TournamentCreate(BaseModel):
 class PlayerInput(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     seed: int = Field(ge=1, le=999)
+
+    @model_validator(mode="before")
+    @classmethod
+    def accept_legacy_player_line(cls, value: Any) -> Any:
+        if isinstance(value, str):
+            parts = value.split("|", 1)
+            if len(parts) == 2:
+                return {"seed": int(parts[0].strip()), "name": parts[1].strip()}
+        return value
 
 
 class GroupCreate(BaseModel):
@@ -460,7 +469,10 @@ async def create_group(group: GroupCreate, x_director_key: str | None = Header(d
     if len(players) < 2:
         raise HTTPException(status_code=400, detail="Add at least two players")
     if SUPABASE is not None:
-        created = SUPABASE.table("groups").insert({"tournament_id": x_tournament_id, "name": group.name.strip()}).execute().data[0]
+        created_rows = SUPABASE.table("groups").insert({"tournament_id": x_tournament_id, "name": group.name.strip()}).select().execute().data or []
+        if not created_rows:
+            raise HTTPException(status_code=500, detail="Supabase did not return the new group")
+        created = created_rows[0]
         SUPABASE.table("players").insert([{"group_id": created["id"], "name": player.name.strip(), "seed": player.seed} for player in players]).execute()
         state = cloud_state(x_tournament_id)
         await manager.broadcast(x_tournament_id, {"type": "state_updated", "state": state})
