@@ -40,6 +40,7 @@ def connect() -> sqlite3.Connection:
 
 
 def initialize_database() -> None:
+    local_winner = None
     with connect() as database:
         database.executescript(
             """
@@ -249,6 +250,44 @@ def cloud_state(tournament_id: str) -> dict[str, Any]:
     return {"tournament": tournament, "matches": matches, "groups": groups, "standings": standings, "server_time": now()}
 
 
+def next_knockout_round(round_name: str) -> str | None:
+    return {"Round of 64": "Round of 32", "Round of 32": "Round of 16", "Round of 16": "Quarter-final", "Quarter-final": "Semi-final", "Semi-final": "Final"}.get(round_name)
+
+
+def advance_local_knockout_winner(match_id: str, tournament_id: str, winner: str) -> None:
+    with connect() as database:
+        match = database.execute("SELECT round FROM matches WHERE id = ? AND tournament_id = ? AND stage = 'knockout'", (match_id, tournament_id)).fetchone()
+        if not match:
+            return
+        next_round = next_knockout_round(match["round"])
+        if not next_round:
+            return
+        current_matches = list(database.execute("SELECT id FROM matches WHERE tournament_id = ? AND stage = 'knockout' AND round = ? ORDER BY id", (tournament_id, match["round"])))
+        next_matches = list(database.execute("SELECT id FROM matches WHERE tournament_id = ? AND stage = 'knockout' AND round = ? ORDER BY id", (tournament_id, next_round)))
+        current_index = next((index for index, item in enumerate(current_matches) if str(item["id"]) == str(match_id)), None)
+        if current_index is None or current_index // 2 >= len(next_matches):
+            return
+        next_match_id = next_matches[current_index // 2]["id"]
+        column = "team_one" if current_index % 2 == 0 else "team_two"
+        database.execute(f"UPDATE matches SET {column} = ? WHERE id = ?", (winner, next_match_id))
+
+
+def advance_cloud_knockout_winner(match_id: str, tournament_id: str, winner: str) -> None:
+    match = SUPABASE.table("matches").select("round").eq("id", match_id).eq("tournament_id", tournament_id).eq("stage", "knockout").single().execute().data
+    if not match:
+        return
+    next_round = next_knockout_round(match["round"])
+    if not next_round:
+        return
+    current_matches = SUPABASE.table("matches").select("id").eq("tournament_id", tournament_id).eq("stage", "knockout").eq("round", match["round"]).order("id").execute().data or []
+    next_matches = SUPABASE.table("matches").select("id").eq("tournament_id", tournament_id).eq("stage", "knockout").eq("round", next_round).order("id").execute().data or []
+    current_index = next((index for index, item in enumerate(current_matches) if str(item["id"]) == str(match_id)), None)
+    if current_index is None or current_index // 2 >= len(next_matches):
+        return
+    column = "team_one" if current_index % 2 == 0 else "team_two"
+    SUPABASE.table("matches").update({column: winner}).eq("id", next_matches[current_index // 2]["id"]).execute()
+
+
 def current_state(tournament_id: int | str = 1) -> dict[str, Any]:
     if SUPABASE is not None:
         return cloud_state(str(tournament_id))
@@ -383,16 +422,29 @@ async def update_status(match_id: str, status: str, x_director_key: str | None =
     if status not in {"UPCOMING", "LIVE", "FINAL"}:
         raise HTTPException(status_code=400, detail="Invalid match status")
     if SUPABASE is not None:
-        result = SUPABASE.table("matches").update({"status": status, "updated_at": now()}).eq("id", match_id).eq("tournament_id", x_tournament_id).execute()
-        if not result.data:
+        match = SUPABASE.table("matches").select("team_one, team_two, score_one, score_two, stage").eq("id", match_id).eq("tournament_id", x_tournament_id).single().execute().data
+        if not match:
             raise HTTPException(status_code=404, detail="Match not found")
+        if status == "FINAL" and match["score_one"] == match["score_two"]:
+            raise HTTPException(status_code=400, detail="A match cannot be finished with a tied score")
+        SUPABASE.table("matches").update({"status": status, "updated_at": now()}).eq("id", match_id).eq("tournament_id", x_tournament_id).execute()
+        if status == "FINAL" and match["stage"] == "knockout":
+            winner = match["team_one"] if match["score_one"] > match["score_two"] else match["team_two"]
+            advance_cloud_knockout_winner(match_id, x_tournament_id, winner)
         state = cloud_state(x_tournament_id)
         await manager.broadcast(x_tournament_id, {"type": "state_updated", "state": state})
         return state
     with connect() as database:
-        result = database.execute("UPDATE matches SET status = ?, updated_at = ? WHERE id = ?", (status, now(), match_id))
-        if result.rowcount == 0:
+        match = database.execute("SELECT team_one, team_two, score_one, score_two, stage FROM matches WHERE id = ? AND tournament_id = ?", (match_id, x_tournament_id)).fetchone()
+        if not match:
             raise HTTPException(status_code=404, detail="Match not found")
+        if status == "FINAL" and match["score_one"] == match["score_two"]:
+            raise HTTPException(status_code=400, detail="A match cannot be finished with a tied score")
+        database.execute("UPDATE matches SET status = ?, updated_at = ? WHERE id = ?", (status, now(), match_id))
+        if status == "FINAL" and match["stage"] == "knockout":
+            local_winner = match["team_one"] if match["score_one"] > match["score_two"] else match["team_two"]
+    if local_winner:
+        advance_local_knockout_winner(match_id, x_tournament_id, local_winner)
     state = current_state(x_tournament_id)
     await manager.broadcast(x_tournament_id, {"type": "state_updated", "state": state})
     return state
