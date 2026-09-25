@@ -541,7 +541,7 @@ async def create_group_stage(_: GroupStageRequest, x_director_key: str | None = 
             players = group_players[group["id"]]
             for first_index in range(len(players)):
                 for second_index in range(first_index + 1, len(players)):
-                    rows.append({"tournament_id": x_tournament_id, "group_id": group["id"], "stage": "group", "court": f"Court {(len(rows) % tournament['courts']) + 1:02d}", "round": f"Group stage · {group['name']}", "team_one": players[first_index], "team_two": players[second_index], "score_one": 0, "score_two": 0, "status": "UPCOMING", "scheduled_at": "12:00", "updated_at": timestamp})
+                    rows.append({"tournament_id": x_tournament_id, "group_id": group["id"], "stage": "group", "court": f"Court {(len(rows) % tournament['courts']) + 1:02d}", "round": f"Group stage · {group['name']}", "team_one": players[first_index], "team_two": players[second_index], "score_one": 0, "score_two": 0, "status": "UPCOMING", "scheduled_at": timestamp, "updated_at": timestamp})
         SUPABASE.table("matches").insert(rows).execute()
         state = cloud_state(x_tournament_id)
         await manager.broadcast(x_tournament_id, {"type": "state_updated", "state": state})
@@ -606,7 +606,7 @@ async def create_knockout(_: KnockoutRequest, x_director_key: str | None = Heade
             round_name = {1: "Final", 2: "Semi-final", 4: "Quarter-final"}.get(round_size, f"Knockout round {round_number}")
             names = pairings if round_number == 1 else [("Qualifier", "TBD") for _ in range(round_size)]
             for first, second in names:
-                rows.append({"tournament_id": x_tournament_id, "stage": "knockout", "court": f"Court {(len(rows) % tournament['courts']) + 1:02d}", "round": round_name, "team_one": first[1] if isinstance(first, tuple) else first, "team_two": second[1] if isinstance(second, tuple) else second, "score_one": 0, "score_two": 0, "status": "UPCOMING", "scheduled_at": "13:00", "updated_at": timestamp})
+                rows.append({"tournament_id": x_tournament_id, "stage": "knockout", "court": f"Court {(len(rows) % tournament['courts']) + 1:02d}", "round": round_name, "team_one": first[1] if isinstance(first, tuple) else first, "team_two": second[1] if isinstance(second, tuple) else second, "score_one": 0, "score_two": 0, "status": "UPCOMING", "scheduled_at": timestamp, "updated_at": timestamp})
             if round_size == 1:
                 break
             round_size //= 2
